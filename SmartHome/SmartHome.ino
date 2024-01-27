@@ -1,5 +1,3 @@
-#include "TvCommands.h"
-
 // Web server Config
 #include "SimpleWebServer.h"
 #include <UnoWiFiDevEdSerial1.h>
@@ -17,9 +15,14 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress tempSensor;
 
 // IRremote config
+#include "TvCommands.h"
 #define IR_SEND_PIN 5
 #include <IRremote.hpp>
-
+#if defined (USE_SAMSUNG)
+#define SendTvCommand(addr, cmd, repeat) IrSender.sendSamsung48(addr, cmd, repeat)
+#else if defined (USE_PANASONIC) 
+#define SendTvCommand(addr, cmd, repeat) IrSender.sendPanasonic(addr, cmd, repeat) 
+#endif
 // Fan config
 #define FAN_SENSE_PIN 2
 #define FAN_CONTROL_PIN 3
@@ -124,34 +127,43 @@ void send_remote_command() {
  */
 bool sendCommand(const String& command) {
   if (command == "power") {
-    IrSender.sendPanasonic(ADDR_POWER, CMD_POWER, 3);
+    SendTvCommand(ADDR_POWER, CMD_POWER, 2);
+    delay(5);
+    SendTvCommand(ADDR_POWER, CMD_POWER, 2);
     return true;
   } else if (command == "volume-up") {
-    IrSender.sendPanasonic(ADDR_VOLUME_DOWN, CMD_VOLUME_DOWN, 0);
+    SendTvCommand(ADDR_VOLUME_DOWN, CMD_VOLUME_DOWN, 0);
     return true;
   } else if (command == "volume-down") {
-    IrSender.sendPanasonic(ADDR_VOLUME_UP, CMD_VOLUME_UP, 0);
+    SendTvCommand(ADDR_VOLUME_UP, CMD_VOLUME_UP, 0);
     return true;
   } else if (command == "channel-up") {
-    IrSender.sendPanasonic(ADDR_CHANNEL_FORWARD, CMD_CHANNEL_FORWARD, 0);
+    SendTvCommand(ADDR_CHANNEL_FORWARD, CMD_CHANNEL_FORWARD, 0);
     return true;
   } else if (command == "channel-down") {
-    IrSender.sendPanasonic(ADDR_CHANNEL_BACK, CMD_CHANNEL_BACK, 0);
+    SendTvCommand(ADDR_CHANNEL_BACK, CMD_CHANNEL_BACK, 0);
     return true;
   } else if (command == "mute") {
-    IrSender.sendPanasonic(ADDR_MUTE, CMD_MUTE, 0);
+    SendTvCommand(ADDR_MUTE, CMD_MUTE, 0);
     return true;
   } else if (command == "return") {
-    IrSender.sendPanasonic(ADDR_RETURN, CMD_RETURN, 0);
+    SendTvCommand(ADDR_RETURN, CMD_RETURN, 0);
     return true;
   }
 
   int8_t command_int = (int8_t)command.toInt();
   if (command == "0") {
-    IrSender.sendPanasonic(ADDR_NUMBER, CMD_ZERO, 0);
+    SendTvCommand(ADDR_NUMBER, CMD_ZERO, 0);
     return true;
   } else if (command_int >= 1 && command_int <= 9) {
-    IrSender.sendPanasonic(ADDR_NUMBER, CMD_ONE + command_int - 1, 0);
+    #if defined(USE_SAMSUNG)
+    // Adjust the command to match the Samsung remote
+    uint8_t offset = 0;
+    offset = command_int >= 4 ? 1 : offset;
+    offset = command_int >= 7 ? 2 : offset;
+    command_int += offset;
+    #endif
+    SendTvCommand(ADDR_NUMBER, CMD_ONE + command_int - 1, 0);
     return true;
   }
 
